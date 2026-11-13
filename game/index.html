@@ -2,21 +2,55 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>BONFIRE: WINTER SURVIVORS</title>
+<title>BONFIRE: WINTER SURVIVORS — Windows 95</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="wrap">
-  <div id="left">
-    <div id="titlebar">BONFIRE: WINTER SURVIVORS &mdash; PC CD-ROM, Winter 1996</div>
-    <canvas id="game" width="640" height="480"></canvas>
-    <div id="hint">click a survivor to select &middot; click the ground to send them &middot; click a beast to strike it</div>
-  </div>
-  <div id="panel"></div>
-</div>
-<div id="overlay"></div>
 
+<!-- Mock Windows 95 desktop, 1024x768 -->
+<div id="desktop">
+  <div class="dicon" style="left:14px;top:14px">
+    <div class="dimg computer"></div><span>My Computer</span>
+  </div>
+  <div class="dicon" style="left:14px;top:86px">
+    <div class="dimg bin"></div><span>Recycle Bin</span>
+  </div>
+  <div class="dicon" style="left:14px;top:158px">
+    <div class="dimg fire"></div><span>Bonfire: Winter Survivors</span>
+  </div>
+
+  <!-- Game window -->
+  <div id="window">
+    <div id="wintitle">
+      <span class="wtitle">BONFIRE: WINTER SURVIVORS — C:\BONFIRE\BONFIRE.EXE</span>
+      <span class="wbtns"><button title="Minimize">_</button><button title="Maximize">□</button><button title="Close">✕</button></span>
+    </div>
+    <div id="menubar"><span><u>F</u>ile</span><span><u>V</u>iew</span><span><u>H</u>elp</span></div>
+    <div id="wrap">
+      <div id="pane-left" class="pane"></div>
+      <div id="left">
+        <div id="screen">
+          <canvas id="game" width="640" height="480"></canvas>
+        </div>
+        <div id="hint">click a survivor to select &middot; click a grid cell to send them there &middot; click a beast to strike it</div>
+      </div>
+      <div id="pane-right" class="pane"></div>
+    </div>
+  </div>
+
+  <!-- Taskbar -->
+  <div id="taskbar">
+    <button id="startbtn"><span id="flag"></span><b>Start</b></button>
+    <div id="taskbtn"><span class="taskicon"></span>Bonfire: Winter Survivors</div>
+    <div id="clock">9:41 PM</div>
+  </div>
+
+  <div id="overlay"></div>
+  <div id="desktop-crt"></div>
+</div>
+
+<script src="src/core/env.js"></script>
 <script src="src/core/rng.js"></script>
 <script src="src/core/data.js"></script>
 <script src="src/core/fire.js"></script>

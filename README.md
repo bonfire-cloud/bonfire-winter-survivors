@@ -133,25 +133,48 @@ original — plus a playable implementation of the design, built today:
 
 - `images/cover-image.png` — the box art
 - `IMPLEMENTATION_PLAN.md` — the plan (engine choice, systems, milestones)
-- `game/` — the playable build (zero-dependency HTML5 canvas, 640×480)
+- `game/` — the playable build: zero-dependency HTML5 canvas at 640×480,
+  isometric 20×15 grid with cell-by-cell movement, 8-bit-style pixel sprites,
+  CRT scanline overlay
 
 ### Run it
 
 Open `game/index.html` in any browser, or serve the folder:
 
 ```
-python3 -m http.server     # then visit http://localhost:8000/game/
+cd /Users/stefan/Documents/Source/bonfire/bonfire-winter-survivors
+python3 -m http.server
+# then open http://localhost:8000/game/ in a browser
+```
+
+### Play online (GitHub Pages)
+
+The game is a static site, so it is deployed automatically by
+`.github/workflows/deploy.yml`: on every push to `main`, CI runs the headless
+test suite and, if green, publishes `game/` to GitHub Pages. Enable it once
+under **Settings → Pages → Source: GitHub Actions**, then play at:
+
+```
+https://bonfire-cloud.github.io/bonfire-winter-survivors/
 ```
 
 ### Test it (headless, Node)
 
 ```
-node game/test/run_tests.js
+node game/test/run_tests.js     # 58 unit/integration tests of the pure core
+node game/test/smoke_env.js     # boots the full browser shell on a mocked env
 ```
 
-41 tests cover the fire sim, the day/night clock, warmth and the ring of
-light, permadeath, ember runs, save/load determinism, and two full simulated
-runs — a competent party that wins, and a neglected camp that freezes.
+The tests cover grid/BFS movement, the fire sim, the day/night clock, warmth
+and the ring of light, woodcutting at tree cells, permadeath, ember runs,
+save/load determinism, and two full simulated runs — a competent party that
+wins, and a neglected camp that freezes.
+
+All host/browser access (`document`, `localStorage`, `requestAnimationFrame`,
+timers, viewport size, `AudioContext`, …) goes through the `BF.env` layer in
+`game/src/core/env.js`, resolved at call time. Tests replace it with mocks via
+`BF.installEnv({...})`; the pure simulation core never touches it (verified
+by a test that poisons `BF.env` and runs the sim).
 
 See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for system design and
 milestones.

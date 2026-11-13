@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const coreDir = path.join(__dirname, '..', 'src', 'core');
-for (const f of ['rng.js', 'data.js', 'fire.js', 'clock.js', 'sim.js']) {
+for (const f of ['env.js', 'rng.js', 'data.js', 'fire.js', 'clock.js', 'sim.js']) {
   eval(fs.readFileSync(path.join(coreDir, f), 'utf8'));
 }
 const BF = globalThis.BF;
@@ -26,6 +26,37 @@ section('RNG determinism');
   ok(same, 'same seed -> same sequence');
   const c = new BF.RNG(43);
   ok(a.next() !== undefined && c.next() !== a.next(), 'different seeds differ');
+}
+
+// ---------- Grid ----------
+section('Grid: cell math, BFS paths, cell-by-cell movement');
+{
+  const g = BF.grid;
+  const c = g.cellCenter(7, 4);
+  const back = g.cellOf(c.x, c.y);
+  ok(back.gx === 7 && back.gy === 4, 'cellCenter/cellOf round-trip');
+  const p = g.bfsPath({ gx: 0, gy: 0 }, { gx: 5, gy: 0 }, () => false);
+  ok(p.length === 5 && p.every((cc, i) => cc.gx === i + 1 && cc.gy === 0), 'BFS straight line on empty grid');
+  ok(g.bfsPath({ gx: 9, gy: 7 }, { gx: 10, gy: 7 }).length === 0, 'fire cell is blocked');
+  const detour = g.bfsPath({ gx: 9, gy: 7 }, { gx: 11, gy: 7 }, g.defaultBlocked);
+  ok(detour.length === 4 && !detour.some(cc => cc.gx === 10 && cc.gy === 7), 'BFS routes around the fire');
+  let treeCell = null;
+  for (let gx = 0; gx < g.GRID.GX && !treeCell; gx++)
+    for (let gy = 0; gy < g.GRID.GY && !treeCell; gy++)
+      if (g.isTreeCell(gx, gy)) treeCell = { gx, gy };
+  ok(!!treeCell, 'tree cells exist on the map');
+  ok(!g.isTreeCell(10, 7) && !g.isTreeCell(9, 7), 'fire and camp cells are never trees');
+  const forestPath = g.bfsPath({ gx: 0, gy: 0 }, { gx: 19, gy: 14 }, g.moveBlocked);
+  ok(forestPath.every(cc => !g.isTreeCell(cc.gx, cc.gy)), 'movement paths never cross tree cells');
+  const s = new BF.GameSim(1, { day: 5, dusk: 1, night: 30 });
+  const h = s.hero('sword');
+  let tx = 15, ty = 7;
+  while (g.isTreeCell(tx, ty) && tx > 0) tx--;
+  ok(s.setHeroTargetCell('sword', tx, ty), 'set target cell');
+  ok(h.path.length > 0, 'path computed');
+  for (let i = 0; i < 400; i++) s.tick(0.05);
+  ok(h.cell.gx === tx && h.cell.gy === ty && Math.abs(h.x - g.cellCenter(tx, ty).x) < 1, 'hero walked cell-by-cell to the target cell');
+  ok(!s.setHeroTargetCell('sword', 10, 7), 'cannot path into the fire cell');
 }
 
 // ---------- FireSim ----------
@@ -97,6 +128,24 @@ section('GameSim: party, tasks, camp actions');
   ok(bondChanged, 'conversation mutates bond by delta');
 }
 
+// ---------- physical woodcutting ----------
+section('GameSim: woodcutting happens at tree cells');
+{
+  const s = new BF.GameSim(21, { day: 30, dusk: 2, night: 30 });
+  const w0 = s.inventory.wood;
+  ok(s.assignTask('trapper', 'wood'), 'trapper assigned to wood');
+  let targetedTree = false, chopped = false;
+  for (let i = 0; i < 500 && s.clock.phase === 'day'; i++) {
+    s.tick(0.1);
+    const h = s.hero('trapper');
+    if (h.treeTarget) targetedTree = true;
+    if (h.chopping) chopped = true;
+  }
+  ok(targetedTree, 'woodcutter pathfinds to an actual tree cell');
+  ok(chopped, 'woodcutter chops at the tree (progress timer)');
+  ok(s.inventory.wood > w0, 'chopped wood is carried back and deposited (inventory grew)');
+}
+
 // ---------- warmth / cold ----------
 section('GameSim: warmth and the ring of light');
 {
@@ -104,11 +153,11 @@ section('GameSim: warmth and the ring of light');
   // jump to night
   while (s.clock.phase !== 'night') s.tick(0.1);
   const h = s.aliveHeroes()[0];
-  h.x = 600; h.y = 440; // far outside the light
+  s.placeAtCell(h.id, 19, 0); // far corner cell, outside the light
   const w0 = h.warmth;
   for (let i = 0; i < 50; i++) s.tick(0.1);
   ok(h.warmth < w0, 'hero outside the light freezes at night');
-  h.x = s.firePos.x; h.y = s.firePos.y + 30; // inside the light
+  s.placeAtCell(h.id, 11, 8); // cell adjacent to the fire, inside the light
   const w1 = h.warmth;
   for (let i = 0; i < 50; i++) s.tick(0.1);
   ok(h.warmth > w1, 'hero inside the light warms up');
@@ -173,7 +222,7 @@ section('GameSim: serialize round-trip');
 // ---------- full run: win path ----------
 section('Full run: a competent party reaches the castle and wins');
 {
-  const s = new BF.GameSim(2024, { day: 8, dusk: 2, night: 25, sites: 3, emberTime: 15 });
+  const s = new BF.GameSim(2024, { day: 20, dusk: 2, night: 25, sites: 3, emberTime: 15 });
   let steps = 0;
   while (s.status === 'playing' && steps++ < 20000) {
     if (s.fire.dead) s.relight();
@@ -190,13 +239,14 @@ section('Full run: a competent party reaches the castle and wins');
     } else if (s.mode === 'ember') {
       if (s.ember && s.ember.lunge) s.clickBeast(s.ember.lunge.id);
     } else if (s.mode === 'castle') {
-      for (const h of s.aliveHeroes()) if (!h.target && s.boss) s.setHeroTarget(h.id, s.boss.x, s.boss.y + 30);
+      const bc = BF.grid.cellOf(s.boss.x, s.boss.y);
+      for (const h of s.aliveHeroes()) if ((!h.path || !h.path.length) && s.boss) s.setHeroTargetCell(h.id, bc.gx, bc.gy);
       for (const b of s.beasts.slice()) s.clickBeast(b.id);
     } else if (s.clock.phase === 'night') {
       while (s.fire.wood < 8 && s.inventory.wood > 0) s.addWood(3);
       if (s.fire.size < 0.45) s.stoke();
-      for (const h of s.aliveHeroes()) { // haul stragglers back into the light
-        if (s.dist(h, s.firePos) > s.fire.warmthRadius * 0.8) s.setHeroTarget(h.id, s.firePos.x, s.firePos.y + 60);
+      for (const h of s.aliveHeroes()) { // haul stragglers back into the light, cell by cell
+        if (BF.grid.cheb(h.cell, BF.grid.FIRE_CELL) > s.fire.warmthRadiusCells * 0.8) s.setHeroTargetCell(h.id, 9, 8);
       }
       for (const b of s.beasts.slice()) s.clickBeast(b.id); // player helps focus targets
     }
@@ -220,6 +270,22 @@ section('Full run: neglect kills the party (permadeath lose path)');
   console.log('  (lose run: status=' + s.status + ', day=' + s.clock.day + ', fireDead=' + s.fire.dead + ')');
   ok(s.status === 'lost', 'a neglected fire and a cold camp end the run');
   ok(s.heroes.every(h => !h.alive), 'everyone is gone');
+}
+
+// ---------- environment abstraction ----------
+section('Env abstraction: the pure core never touches host globals');
+{
+  const real = BF.env;
+  BF.env = new Proxy({}, { get() { throw new Error('core touched host env'); } });
+  let ran = false;
+  try {
+    const s = new BF.GameSim(5, { day: 5, dusk: 1, night: 20, sites: 2, emberTime: 8 });
+    for (let i = 0; i < 400; i++) s.tick(0.1);
+    ran = !!s.status;
+  } catch (e) { ran = false; }
+  BF.env = real;
+  ok(ran, 'sim runs to completion with a poisoned BF.env');
+  ok(typeof BF.installEnv === 'function', 'BF.installEnv available for mocks');
 }
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

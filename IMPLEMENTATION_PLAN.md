@@ -1,6 +1,6 @@
 # IMPLEMENTATION PLAN — Bonfire: Winter Survivors
 
-Status: **implemented** — playable build in `game/`, 41 headless tests green
+Status: **implemented** — playable build in `game/`, 49 headless tests green
 (`node game/test/run_tests.js`). See §12 for what shipped vs. this plan.
 Companion to: [README.md](README.md) (the concept / box mockup)
 
@@ -193,15 +193,15 @@ Total: ~16–19 weeks to a shippable vertical slice → full campaign.
 
 | Plan item | Shipped |
 |---|---|
-| M0 project setup + art pipeline | `game/` static site, 640×480 pixelated canvas, Win95-style UI chrome |
-| M1 core loop skeleton | `GameClock` day/dusk/night, canvas loop, hero movement |
-| M2 FireSim + light | `FireSim`: wood/size/hp, light radius = safe zone, castle visibility, relight |
-| M3 party + day phase | 4 heroes, task assignment (wood/hunt/scout/rest), dusk yields, late returns |
-| M4 night defense | Beasts spawn outside the ring, attack heroes and the fire, watch toggle, click-to-strike |
+| M0 project setup + art pipeline | `game/` static site, 640×480 pixelated canvas with CRT scanlines, pixel-art sprites from bitmap maps, Win95-style UI chrome |
+| M1 core loop skeleton | `GameClock` day/dusk/night, isometric 20×15 grid, cell-by-cell BFS movement for heroes and beasts, light radius measured in cells |
+| M2 FireSim + light | `FireSim`: wood/size/hp, light radius in grid cells = safe zone (per-cell darkness), castle visibility, relight |
+| M3 party + day phase | 4 heroes, task assignment; woodcutting is physical — heroes path to tree cells, chop on a timer, carry wood back to camp; hunt/scout resolve at dusk; late returns |
+| M4 night defense | Beasts path cell-by-cell toward the fire/heroes from outside the ring, attack adjacent cells and the fire, watch toggle, click-to-strike |
 | M5 camp + conversations | Food/blanket allocation, fireside talk with bond/grudge deltas affecting morale and damage |
 | M6 ember run + castle + permadeath | Torch-timer ember run between camp sites, castle assault + boss, permanent death, seeded runs, localStorage saves |
 | M7 content + audio | Randomized event deck (10 events), WebAudio tracker-style loop + fire crackle (`src/audio.js`) |
-| Tests | `game/test/run_tests.js` — 41 assertions incl. full win run and full wipe run |
+| Tests | `game/test/run_tests.js` (58 assertions incl. grid/BFS, woodcutting, full win/wipe runs) + `game/test/smoke_env.js` (full shell on mocked env). All host access abstracted behind `BF.env` (`src/core/env.js`), resolved at call time; core sim is env-free (poison-env test) |
 
 Deviations from plan: no Godot (web build instead), no tracker files (WebAudio
 synth instead), campaign pacing compressed for dev (phase durations are

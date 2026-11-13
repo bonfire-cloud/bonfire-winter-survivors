@@ -23,7 +23,7 @@
   const Audio = {
     start() {
       if (ctx) return;
-      const AC = globalThis.AudioContext || globalThis.webkitAudioContext;
+      const AC = BF.env.audioContextCtor();
       if (!AC) return;
       try {
         ctx = new AC();
@@ -43,7 +43,7 @@
         crackleGain.gain.value = 0;
         src.connect(filt); filt.connect(crackleGain); crackleGain.connect(master);
         src.start();
-        musicTimer = setInterval(() => {
+        musicTimer = BF.env.setInterval(() => {
           if (!ctx) return;
           const t = ctx.currentTime + 0.05;
           const spb = 0.22;
@@ -67,7 +67,7 @@
       note(110, ctx.currentTime + 0.12, 0.45, 'sawtooth', 0.12);
     },
     stop() {
-      if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
+      if (musicTimer) { BF.env.clearInterval(musicTimer); musicTimer = null; }
       if (ctx) { try { ctx.close(); } catch (e) { /* ignore */ } ctx = null; }
     },
   };

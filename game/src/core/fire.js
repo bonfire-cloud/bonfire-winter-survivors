@@ -13,17 +13,23 @@
     get burnRate() {     // wood per second
       return this.dead ? 0 : 0.08 + this.size * 0.55;
     }
-    get lightRadius() {  // the safe zone
-      return this.dead ? 0 : 70 + this.size * 230;
+    get lightRadiusCells() { // the safe zone, in grid cells
+      return this.dead ? 0 : Math.round(2 + this.size * 6);
+    }
+    get lightRadius() {      // screen px, for the renderer glow
+      return this.lightRadiusCells * 18;
+    }
+    get warmthRadiusCells() {
+      return this.lightRadiusCells;
     }
     get warmthRadius() {
-      return this.lightRadius * 0.95;
+      return this.lightRadius;
     }
     get visibleToCastle() {
       return !this.dead && this.size > 0.66;
     }
-    stoke() { this.size = Math.min(1, this.size + 0.25); }
-    bank() { this.size = Math.max(0.15, this.size - 0.25); }
+    stoke() { if (this.wood > 0) this.size = Math.min(1, this.size + 0.25); }
+    bank() { this.size = Math.max(this.wood > 0 ? 0.15 : 0, this.size - 0.25); }
     addWood(n) { this.wood += n; }
     tick(dt) {
       if (this.dead) return;

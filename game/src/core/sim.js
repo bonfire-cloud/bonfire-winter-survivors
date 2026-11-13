@@ -1,11 +1,77 @@
-/* GameSim — pure simulation core. No DOM; runs in the browser and in Node
- * (tests). Every system feeds the fire. */
+/* GameSim — pure simulation core. No DOM; runs in the browser and in Node.
+ * The world is an isometric grid (20x15 cells); heroes and beasts move
+ * cell-by-cell along BFS paths. Every system feeds the fire. */
 (function () {
   const BF = (globalThis.BF = globalThis.BF || {});
 
   const W = 640, H = 480;
-  const HERO_SPEED = 70;
-  const MELEE_RANGE = 46;
+  const GRID = { GX: 20, GY: 15, TW: 32, TH: 16, OX: 320, OY: 96 };
+  const FIRE_CELL = { gx: 10, gy: 7 };
+  const HERO_SPEED = 80; // px/s along the grid path
+
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function cellCenter(gx, gy) {
+    return { x: GRID.OX + (gx - gy) * (GRID.TW / 2), y: GRID.OY + (gx + gy) * (GRID.TH / 2) };
+  }
+  function cellOf(x, y) {
+    const rx = (x - GRID.OX) / (GRID.TW / 2);
+    const ry = (y - GRID.OY) / (GRID.TH / 2);
+    return {
+      gx: clamp(Math.round((rx + ry) / 2), 0, GRID.GX - 1),
+      gy: clamp(Math.round((ry - rx) / 2), 0, GRID.GY - 1),
+    };
+  }
+  function cheb(a, b) { return Math.max(Math.abs(a.gx - b.gx), Math.abs(a.gy - b.gy)); }
+  function key(c) { return c.gx + ',' + c.gy; }
+
+  function hash2(x, y) {
+    let h = (x * 374761393 + y * 668265263) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
+
+  const CAMP_CELLS = [{ gx: 9, gy: 7 }, { gx: 11, gy: 7 }, { gx: 10, gy: 8 }, { gx: 10, gy: 6 }];
+
+  /* Trees are real, choppable, blocking cells — deterministic per seed layout. */
+  function isTreeCell(gx, gy) {
+    if (gx === FIRE_CELL.gx && gy === FIRE_CELL.gy) return false;
+    if (CAMP_CELLS.some(c => c.gx === gx && c.gy === gy)) return false;
+    const border = gx === 0 || gy === 0 || gx === GRID.GX - 1 || gy === GRID.GY - 1;
+    const h = hash2(gx + 31, gy + 17);
+    return border ? h < 0.32 : h < 0.18;
+  }
+
+  function defaultBlocked(c) { return c.gx === FIRE_CELL.gx && c.gy === FIRE_CELL.gy; }
+  function moveBlocked(c) { return defaultBlocked(c) || isTreeCell(c.gx, c.gy); }
+
+  /* 4-directional BFS on the grid. isBlocked(cell) blocks; allowTarget lets the
+   * final cell be a blocked cell (e.g. walk up to a tree / the fire). */
+  function bfsPath(from, to, isBlocked, allowTarget) {
+    isBlocked = isBlocked || defaultBlocked;
+    if (key(from) === key(to)) return [];
+    const parent = new Map([[key(from), null]]);
+    const q = [from];
+    while (q.length) {
+      const c = q.shift();
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const n = { gx: c.gx + dx, gy: c.gy + dy };
+        if (n.gx < 0 || n.gy < 0 || n.gx >= GRID.GX || n.gy >= GRID.GY) continue;
+        const isTarget = n.gx === to.gx && n.gy === to.gy;
+        if (isBlocked(n) && !(allowTarget && isTarget)) continue;
+        if (parent.has(key(n))) continue;
+        parent.set(key(n), c);
+        if (isTarget) {
+          const path = [];
+          let cur = n;
+          while (cur) { path.unshift(cur); cur = parent.get(key(cur)); }
+          path.shift();
+          return path;
+        }
+        q.push(n);
+      }
+    }
+    return [];
+  }
 
   let beastCounter = 1;
 
@@ -20,24 +86,29 @@
       );
       this.clock = new BF.GameClock({ day: this.opts.day, dusk: this.opts.dusk, night: this.opts.night });
       this.fire = new BF.FireSim();
-      this.firePos = { x: W / 2, y: H / 2 + 10 };
+      this.firePos = cellCenter(FIRE_CELL.gx, FIRE_CELL.gy);
       this.inventory = { wood: 12, food: 8, blankets: 2, torches: 3, embers: 1 };
-      this.heroes = BF.DATA.heroes.map((h, i) => ({
-        id: h.id, name: h.name, role: h.role, color: h.color,
-        maxHp: h.hp, hp: h.hp, atk: h.atk,
-        warmth: 80, hunger: 70, morale: 60,
-        alive: true,
-        x: this.firePos.x + (i - 1.5) * 46,
-        y: this.firePos.y + 78 + (i % 2) * 24,
-        task: 'rest', watching: true, target: null, atkCd: 0, late: false,
-        bonds: {},
-      }));
+      const campCells = [{ gx: 9, gy: 7 }, { gx: 11, gy: 7 }, { gx: 10, gy: 8 }, { gx: 10, gy: 6 }];
+      this.heroes = BF.DATA.heroes.map((h, i) => {
+        const c = campCells[i];
+        const p = cellCenter(c.gx, c.gy);
+        return {
+          id: h.id, name: h.name, role: h.role, color: h.color,
+          maxHp: h.hp, hp: h.hp, atk: h.atk,
+          warmth: 80, hunger: 70, morale: 60,
+          alive: true,
+          x: p.x, y: p.y, cell: { gx: c.gx, gy: c.gy }, path: [],
+          task: 'rest', watching: true, atkCd: 0, late: false,
+          carried: 0, chopping: false, chopT: 0, treeTarget: null,
+          bonds: {},
+        };
+      });
       for (const a of this.heroes)
         for (const b of this.heroes) if (a.id !== b.id) a.bonds[b.id] = 0;
       this.beasts = [];
       this.spawnT = 4;
       this.mode = 'camp'; // camp | ember | castle
-      this.distance = this.opts.sites; // camp sites left until the castle
+      this.distance = this.opts.sites;
       this.status = 'playing'; // playing | won | lost
       this.storm = false;
       this.castleSeen = false;
@@ -64,9 +135,10 @@
 
     assignTask(id, task) {
       const h = this.hero(id);
-      if (h && h.alive && this.mode === 'camp' && this.clock.phase === 'day' &&
-          BF.DATA.tasks.some(t => t.id === task)) {
+      const t = BF.DATA.tasks.find(t => t.id === task);
+      if (h && h.alive && t && this.mode === 'camp' && this.clock.phase === 'day') {
         h.task = task;
+        this.say(h.name + ' will ' + t.label.toLowerCase() + ' today.');
         return true;
       }
       return false;
@@ -131,9 +203,36 @@
       if (h && h.alive) h.watching = !!on;
     }
 
-    setHeroTarget(id, x, y) {
+    /* Cell-by-cell movement: click a grid cell, the hero walks the BFS path.
+     * Trees and the fire block; clicking one paths up to it instead. */
+    setHeroTargetCell(id, gx, gy) {
       const h = this.hero(id);
-      if (h && h.alive) h.target = { x: Math.max(16, Math.min(W - 16, x)), y: Math.max(16, Math.min(H - 16, y)) };
+      if (!h || !h.alive) return false;
+      const target = {
+        gx: clamp(Math.round(gx), 0, GRID.GX - 1),
+        gy: clamp(Math.round(gy), 0, GRID.GY - 1),
+      };
+      if (target.gx === FIRE_CELL.gx && target.gy === FIRE_CELL.gy) return false;
+      let p = bfsPath(h.cell, target, moveBlocked, true);
+      if (p.length && moveBlocked(p[p.length - 1])) p.pop(); // stop adjacent to a blocked cell
+      h.path = p;
+      return true;
+    }
+
+    /* Pixel-space convenience (used by tests): targets the cell under x,y. */
+    setHeroTarget(id, x, y) {
+      const c = cellOf(x, y);
+      return this.setHeroTargetCell(id, c.gx, c.gy);
+    }
+
+    /* Teleport a hero to a cell (tests). */
+    placeAtCell(id, gx, gy) {
+      const h = this.hero(id);
+      if (!h) return;
+      h.cell = { gx, gy };
+      const p = cellCenter(gx, gy);
+      h.x = p.x; h.y = p.y;
+      h.path = [];
     }
 
     /* Fireside conversation: builds a bond or a grudge between two heroes. */
@@ -177,8 +276,13 @@
     startCastleAssault() {
       if (this.mode === 'camp' && this.distance <= 0 && this.clock.phase === 'day') {
         this.mode = 'castle';
+        const bc = { gx: 10, gy: 3 };
+        const p = cellCenter(bc.gx, bc.gy);
         const hp = 220 + this.clock.day * 20;
-        this.boss = { id: 'boss', x: this.firePos.x, y: this.firePos.y - 130, hp, maxHp: hp, atk: 14, speed: 22, atkCd: 0, radius: 22 };
+        this.boss = {
+          id: 'boss', x: p.x, y: p.y, cell: bc, path: [], aiT: 0,
+          hp, maxHp: hp, atk: 14, speed: 30, atkCd: 0, radius: 22,
+        };
         this.spawnT = 2;
         this.say('The castle gates. The eyes come from everywhere. End it.');
         return true;
@@ -230,10 +334,16 @@
       this.say('Dusk. The light goes amber over the snow.');
       for (const h of this.aliveHeroes()) {
         if (h.task === 'wood') {
-          let n = 5 + this.rng.int(0, 5);
-          if (h.id === 'trapper') n = Math.round(n * 1.5);
-          this.inventory.wood += n;
-          this.say(h.name + ' hauls back ' + n + ' wood.');
+          // wood is gathered physically at tree cells; deposit whatever was carried
+          if (h.carried > 0) {
+            this.inventory.wood += h.carried;
+            this.say(h.name + ' brings ' + h.carried + ' carried wood back.');
+          } else {
+            this.say(h.name + ' found no time to chop wood.');
+          }
+          h.carried = 0;
+          h.chopping = false;
+          h.treeTarget = null;
         } else if (h.task === 'hunt') {
           let n = 2 + this.rng.int(0, 3);
           if (h.id === 'ranger') n = Math.round(n * 1.5);
@@ -264,9 +374,10 @@
       this.say('Night ' + this.clock.day + '. The eyes come out. Defend the ring of light.');
       for (const h of this.aliveHeroes()) {
         if (h.late) {
-          const ang = this.rng.range(0, Math.PI * 2);
-          h.x = Math.max(20, Math.min(W - 20, this.firePos.x + Math.cos(ang) * 290));
-          h.y = Math.max(20, Math.min(H - 20, this.firePos.y + Math.sin(ang) * 250));
+          const edge = this._randomEdgeCell();
+          h.cell = edge;
+          const p = cellCenter(edge.gx, edge.gy);
+          h.x = p.x; h.y = p.y; h.path = [];
           h.late = false;
           this.say(h.name + ' stumbles in out of the dark, barely ahead of the eyes.');
         }
@@ -279,12 +390,35 @@
       this._fireEvent(['night']);
     }
 
+    _randomEdgeCell() {
+      if (this.rng.chance(0.5)) {
+        return { gx: this.rng.int(0, GRID.GX - 1), gy: this.rng.chance(0.5) ? 0 : GRID.GY - 1 };
+      }
+      return { gx: this.rng.chance(0.5) ? 0 : GRID.GX - 1, gy: this.rng.int(0, GRID.GY - 1) };
+    }
+
     _fireEvent(whenList) {
       const pool = BF.DATA.events.filter(e => e.when.some(w => whenList.includes(w)));
       if (!pool.length) return;
       const ev = this.rng.pick(pool);
       this.say('Event: ' + ev.text);
       ev.apply(this);
+    }
+
+    _moveAlongPath(e, speed, dt) {
+      if (!e.path || !e.path.length) return;
+      const next = e.path[0];
+      const c = cellCenter(next.gx, next.gy);
+      const d = Math.hypot(c.x - e.x, c.y - e.y);
+      const step = speed * dt;
+      if (d <= step) {
+        e.x = c.x; e.y = c.y;
+        e.cell = { gx: next.gx, gy: next.gy };
+        e.path.shift();
+      } else {
+        e.x += ((c.x - e.x) / d) * step;
+        e.y += ((c.y - e.y) / d) * step;
+      }
     }
 
     _tickHeroes(dt) {
@@ -294,8 +428,13 @@
         if (!h.alive) continue;
         h.hunger = Math.max(0, h.hunger - (night ? 0.5 : 0.25) * dt);
 
-        const d = this.dist(h, this.firePos);
-        const inLight = !this.fire.dead && d <= this.fire.warmthRadius;
+        this._moveAlongPath(h, HERO_SPEED, dt);
+        h.cell = cellOf(h.x, h.y);
+
+        if (this.mode === 'camp' && phase === 'day' && h.task === 'wood') this._tickWoodcutting(h, dt);
+
+        const d = cheb(h.cell, FIRE_CELL);
+        const inLight = !this.fire.dead && d <= this.fire.warmthRadiusCells;
         let coldRate, warmRate;
         if (night) { coldRate = 1.6 * (this.storm ? 1.5 : 1); warmRate = 6; }
         else { coldRate = 0.3; warmRate = 2; }
@@ -310,20 +449,10 @@
         const target = 50 + avgBond * 0.3 - (h.hunger < 25 ? 15 : 0) - (h.warmth < 25 ? 15 : 0);
         h.morale = Math.max(0, Math.min(100, h.morale + (target - h.morale) * 0.02 * dt * 10));
 
-        // movement
-        if (h.target) {
-          const d = this.dist(h, h.target);
-          if (d < 4) h.target = null;
-          else {
-            h.x += ((h.target.x - h.x) / d) * HERO_SPEED * dt;
-            h.y += ((h.target.y - h.y) / d) * HERO_SPEED * dt;
-          }
-        }
-
-        // auto-attack beasts in melee range (watchers only)
+        // auto-attack beasts on adjacent cells (watchers only)
         h.atkCd -= dt;
         if (h.watching && h.atkCd <= 0) {
-          const b = this._nearestBeast(h.x, h.y, MELEE_RANGE);
+          const b = this._adjacentBeast(h.cell);
           if (b) {
             h.atkCd = 0.8;
             const dmgMult = (0.8 + (h.morale / 100) * 0.4 + (avgBond / 100) * 0.2);
@@ -333,6 +462,75 @@
         }
         if (h.hp <= 0) this._killHero(h);
       }
+    }
+
+    /* Physical woodcutting: walk to a tree cell, chop, carry back to camp. */
+    _tickWoodcutting(h, dt) {
+      const g = BF.grid;
+      if (h.chopping) {
+        h.chopT -= dt;
+        if (h.chopT <= 0) {
+          h.chopping = false;
+          let n = 2 + this.rng.int(0, 2);
+          if (h.id === 'trapper') n = Math.round(n * 1.5);
+          h.carried += n;
+          this.say(h.name + ' chops ' + n + ' wood (' + h.carried + ' carried).');
+        }
+        return;
+      }
+      if (h.carried >= 6) {
+        // haul the load back to the fire
+        if (cheb(h.cell, FIRE_CELL) <= 1) {
+          this.inventory.wood += h.carried;
+          this.say(h.name + ' hauls ' + h.carried + ' wood back to camp.');
+          h.carried = 0;
+          h.treeTarget = null;
+        } else if (!h.path.length) {
+          h.path = bfsPath(h.cell, { gx: 9, gy: 7 }, moveBlocked, false);
+        }
+        return;
+      }
+      if (!h.treeTarget || cheb(h.cell, h.treeTarget) > 1) {
+        if (!h.path.length) {
+          const t = this._nearestTree(h.cell, h.id);
+          if (t) {
+            h.treeTarget = t;
+            const p = bfsPath(h.cell, t, moveBlocked, true);
+            if (p.length && moveBlocked(p[p.length - 1])) p.pop(); // stop adjacent to the tree
+            h.path = p;
+          }
+        }
+      }
+      if (h.treeTarget && cheb(h.cell, h.treeTarget) <= 1 && !h.path.length) {
+        h.chopping = true;
+        h.chopT = 2;
+      }
+    }
+
+    _nearestTree(fromCell, claimBy) {
+      const g = BF.grid;
+      let best = null, bd = Infinity;
+      for (let gx = 0; gx < g.GRID.GX; gx++) {
+        for (let gy = 0; gy < g.GRID.GY; gy++) {
+          if (!isTreeCell(gx, gy)) continue;
+          const claimed = this.heroes.some(o => o.alive && o.id !== claimBy &&
+            o.treeTarget && o.treeTarget.gx === gx && o.treeTarget.gy === gy);
+          if (claimed) continue;
+          const d = cheb(fromCell, { gx, gy });
+          if (d < bd) { bd = d; best = { gx, gy }; }
+        }
+      }
+      return best;
+    }
+
+    _adjacentBeast(cell) {
+      const all = this.boss && this.boss.hp > 0 ? this.beasts.concat([this.boss]) : this.beasts;
+      let best = null, bd = 2;
+      for (const b of all) {
+        const d = cheb(cell, b.cell || cellOf(b.x, b.y));
+        if (d <= 1 && d < bd) { bd = d; best = b; }
+      }
+      return best;
     }
 
     _damageHero(h, amount, cause) {
@@ -351,27 +549,16 @@
     }
 
     _spawnBeast() {
-      const ang = this.rng.range(0, Math.PI * 2);
-      const r = this.rng.range(270, 320);
+      const edge = this._randomEdgeCell();
+      const p = cellCenter(edge.gx, edge.gy);
       const day = this.clock.day;
       this.beasts.push({
         id: 'b' + beastCounter++,
-        x: Math.max(20, Math.min(W - 20, this.firePos.x + Math.cos(ang) * r)),
-        y: Math.max(20, Math.min(H - 20, this.firePos.y + Math.sin(ang) * r)),
+        x: p.x, y: p.y, cell: { gx: edge.gx, gy: edge.gy }, path: [], aiT: 0,
         hp: 30 + day * 6, maxHp: 30 + day * 6,
-        atk: 6 + day, speed: 24 + day * 2,
+        atk: 6 + day, speed: 26 + day * 2,
         atkCd: 0, radius: 12,
       });
-    }
-
-    _nearestBeast(x, y, maxD) {
-      let best = null, bd = maxD;
-      const all = this.boss && this.boss.hp > 0 ? this.beasts.concat([this.boss]) : this.beasts;
-      for (const b of all) {
-        const d = Math.hypot(b.x - x, b.y - y);
-        if (d < bd) { bd = d; best = b; }
-      }
-      return best;
     }
 
     _tickBeasts(dt) {
@@ -387,56 +574,67 @@
           this.spawnT = Math.max(2.5, interval);
         }
       }
-      const targets = this.aliveHeroes();
       for (const b of this.beasts) {
         if (b.hp <= 0) continue;
         b.atkCd -= dt;
-        // prefer a hero standing in the dark near the beast, else the fire/party
-        let tx, ty;
-        const prey = targets.length ? targets.reduce((m, h) => (this.dist(b, h) < this.dist(b, m) ? h : m)) : null;
-        if (prey && this.dist(b, prey) < 90 && (!this.fire.dead || this.mode === 'castle')) {
-          tx = prey.x; ty = prey.y;
-        } else if (!this.fire.dead) {
-          tx = this.firePos.x; ty = this.firePos.y;
-        } else if (prey) {
-          tx = prey.x; ty = prey.y;
-        } else continue;
-
-        const d = Math.hypot(tx - b.x, ty - b.y);
-        const reach = (b === this.boss ? 30 : 22);
-        if (d > reach) {
-          b.x += ((tx - b.x) / d) * b.speed * dt;
-          b.y += ((ty - b.y) / d) * b.speed * dt;
-        } else if (b.atkCd <= 0) {
-          b.atkCd = 1;
-          if (!this.fire.dead && this.dist(b, this.firePos) <= 22 && !(prey && this.dist(b, prey) < 26)) {
+        b.aiT -= dt;
+        if (b.aiT <= 0) {
+          b.aiT = 0.4;
+          const heroes = this.aliveHeroes();
+          let target = null;
+          if (heroes.length) {
+            const prey = heroes.reduce((m, h) => (cheb(b.cell, h.cell) < cheb(b.cell, m.cell) ? h : m));
+            if (cheb(b.cell, prey.cell) <= 3 || this.fire.dead || this.mode === 'castle') target = prey.cell;
+            else if (!this.fire.dead) target = { gx: FIRE_CELL.gx, gy: FIRE_CELL.gy };
+          } else if (!this.fire.dead) {
+            target = { gx: FIRE_CELL.gx, gy: FIRE_CELL.gy };
+          }
+          if (target) {
+            const p = bfsPath(b.cell, target, moveBlocked, true);
+            if (p.length && moveBlocked(p[p.length - 1])) p.pop();
+            b.path = p;
+          }
+        }
+        this._moveAlongPath(b, b.speed, dt);
+        b.cell = cellOf(b.x, b.y);
+        if (b.atkCd <= 0) {
+          const prey = this.aliveHeroes().find(h => cheb(b.cell, h.cell) <= 1);
+          if (prey) {
+            b.atkCd = 1;
+            this._damageHero(prey, b.atk, 'mauled');
+          } else if (!this.fire.dead && cheb(b.cell, FIRE_CELL) <= 1) {
+            b.atkCd = 1;
             this.fire.hp -= b.atk;
             if (this.fire.hp <= 0) this.say('The beasts tear at the fire itself!');
-          } else if (prey && this.dist(b, prey) <= 30) {
-            this._damageHero(prey, b.atk, 'mauled');
           }
         }
       }
       this.beasts = this.beasts.filter(b => b.hp > 0);
-      if (this.boss) {
+
+      if (this.boss && this.boss.hp > 0) {
         const b = this.boss;
-        if (b.hp > 0) {
-          b.atkCd -= dt;
-          const prey = targets.length ? targets[0] : null;
-          if (prey) {
-            const d = this.dist(b, prey);
-            if (d > 30) {
-              b.x += ((prey.x - b.x) / d) * b.speed * dt;
-              b.y += ((prey.y - b.y) / d) * b.speed * dt;
-            } else if (b.atkCd <= 0) {
-              b.atkCd = 1.2;
-              this._damageHero(prey, b.atk, 'slain by the castle thing');
-            }
+        b.atkCd -= dt;
+        b.aiT -= dt;
+        if (b.aiT <= 0) {
+          b.aiT = 0.4;
+          const heroes = this.aliveHeroes();
+          if (heroes.length) {
+            const prey = heroes.reduce((m, h) => (cheb(b.cell, h.cell) < cheb(b.cell, m.cell) ? h : m));
+            b.path = bfsPath(b.cell, prey.cell, moveBlocked, false);
           }
-        } else {
-          this.status = 'won';
-          this.say('The thing in the castle falls. The valley is quiet. You survived.');
         }
+        this._moveAlongPath(b, b.speed, dt);
+        b.cell = cellOf(b.x, b.y);
+        if (b.atkCd <= 0) {
+          const prey = this.aliveHeroes().find(h => cheb(b.cell, h.cell) <= 1);
+          if (prey) {
+            b.atkCd = 1.2;
+            this._damageHero(prey, b.atk, 'slain by the castle thing');
+          }
+        }
+      } else if (this.boss) {
+        this.status = 'won';
+        this.say('The thing in the castle falls. The valley is quiet. You survived.');
       }
     }
 
@@ -490,9 +688,7 @@
 
     _checkEnd() {
       if (this.status !== 'playing') return;
-      if (this.aliveHeroes().length === 0) {
-        this.status = 'lost';
-      }
+      if (this.aliveHeroes().length === 0) this.status = 'lost';
     }
 
     // ---------- save / load ----------
@@ -537,4 +733,5 @@
 
   BF.GameSim = GameSim;
   BF.WORLD = { W, H };
+  BF.grid = { GRID, FIRE_CELL, CAMP_CELLS, cellCenter, cellOf, cheb, bfsPath, clamp, hash2, isTreeCell, defaultBlocked, moveBlocked };
 })();

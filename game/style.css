@@ -1,83 +1,198 @@
-/* Bonfire: Winter Survivors — 1996-era chrome. 640x480 game, pixelated upscale. */
+/* Bonfire: Winter Survivors — mock Windows 95 desktop (1024x768) with the
+ * game in a window at native 640x480 (integer pixels, no blur). */
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: #10131f; }
+html, body { margin: 0; height: 100%; }
 body {
-  font-family: "Courier New", monospace;
-  color: #d8dce8;
+  background: #1c1c24;
   display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  font-family: Tahoma, "MS Sans Serif", Verdana, sans-serif;
 }
-#wrap { display: flex; gap: 10px; padding: 10px; }
-#left { display: flex; flex-direction: column; gap: 6px; }
-#titlebar {
-  background: linear-gradient(90deg, #1a2a6c, #3a5fcd);
-  color: #fff; padding: 4px 8px; font-weight: bold; letter-spacing: 1px;
-  font-size: 13px; text-shadow: 1px 1px 0 #000;
+
+/* ---------- desktop ---------- */
+#desktop {
+  position: relative;
+  width: 1024px; height: 768px;
+  background: #008080;
+  overflow: hidden;
+  flex: 0 0 auto;
+  box-shadow: 0 0 60px rgba(0,0,0,0.8);
+  user-select: none;
 }
+.dicon {
+  position: absolute; width: 84px; text-align: center;
+  color: #fff; font-size: 11px; line-height: 1.2; text-shadow: 1px 1px 0 #000;
+}
+.dimg {
+  width: 32px; height: 32px; margin: 0 auto 3px;
+  border: 2px solid; border-color: #fff #404040 #404040 #fff;
+  background: #c0c0c0;
+}
+.dimg.computer { background: linear-gradient(#dfefff 55%, #c0c0c0 55%); }
+.dimg.bin { background: linear-gradient(#3aa03a, #1c5c1c); border-radius: 3px 3px 6px 6px; }
+.dimg.fire { background: #10131f; position: relative; }
+.dimg.fire::after {
+  content: ""; position: absolute; left: 11px; top: 7px; width: 10px; height: 16px;
+  background: #ff9a2a;
+  clip-path: polygon(50% 0, 100% 62%, 82% 100%, 18% 100%, 0 62%);
+}
+
+/* ---------- game window ---------- */
+#window {
+  position: absolute; left: 10px; top: 34px; width: 1004px;
+  background: #c0c0c0;
+  border: 2px solid; border-color: #dfdfdf #404040 #404040 #dfdfdf;
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+}
+#wintitle {
+  height: 20px; display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(90deg, #000080, #1084d0);
+  padding: 0 3px 0 6px;
+}
+.wtitle { color: #fff; font-weight: bold; font-size: 11px; letter-spacing: 0.5px; text-shadow: 1px 1px 0 #000; }
+.wbtns button {
+  width: 18px; height: 15px; margin-left: 2px;
+  font-family: inherit; font-size: 10px; line-height: 1; cursor: default;
+  background: #c0c0c0; color: #000;
+  border: 2px solid; border-color: #fff #404040 #404040 #fff;
+  padding: 0;
+}
+.wbtns button:active { border-color: #404040 #fff #fff #404040; }
+#menubar {
+  display: flex; gap: 2px; padding: 2px 4px;
+  background: #c0c0c0; font-size: 11px; color: #000;
+  border-bottom: 1px solid #808080;
+}
+#menubar span { padding: 1px 6px; }
+#menubar span:hover { background: #000080; color: #fff; }
+
+/* ---------- game layout inside the window ---------- */
+#wrap { display: flex; gap: 6px; padding: 6px; align-items: flex-start; }
+#left { display: flex; flex-direction: column; gap: 4px; }
+#screen { position: relative; width: 640px; }
 #game {
-  width: 960px; height: 720px;   /* 1.5x upscale */
+  display: block;
+  width: 640px; height: 480px;   /* native 1x: pixel-perfect */
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   background: #000;
-  border: 2px solid #444;
+  border: 2px solid; border-color: #404040 #fff #fff #404040;
 }
-#hint { font-size: 11px; color: #7a819a; }
+#hint { font-size: 10px; color: #333; font-family: "Courier New", monospace; }
 
-/* --- Win95-ish panel --- */
-#panel {
-  width: 320px; max-height: 720px; overflow-y: auto;
+/* --- Win95-ish side panes --- */
+.pane {
+  max-height: 480px; overflow-y: auto;
+  background: #c0c0c0; color: #000;
+  border: 2px solid; border-color: #404040 #fff #fff #404040;
+  padding: 5px; font-size: 11px;
+  font-family: "Courier New", monospace;
+}
+#pane-left { width: 152px; }
+#pane-right { width: 184px; }
+.pane h3 {
+  margin: 5px 0 3px; font-size: 11px; background: linear-gradient(90deg,#000080,#1084d0);
+  color: #fff; padding: 1px 5px; font-family: Tahoma, sans-serif;
+}
+.pane .row { display: flex; justify-content: space-between; margin: 1px 0; }
+.pane button {
+  font-family: inherit; font-size: 10px; cursor: pointer;
   background: #c0c0c0; color: #000;
   border: 2px solid; border-color: #fff #404040 #404040 #fff;
-  padding: 6px; font-size: 12px;
+  padding: 2px 4px; margin: 1px 1px 1px 0;
 }
-#panel h3 {
-  margin: 6px 0 4px; font-size: 12px; background: linear-gradient(90deg,#1a2a6c,#3a5fcd);
-  color: #fff; padding: 2px 6px;
-}
-#panel .row { display: flex; justify-content: space-between; margin: 1px 0; }
-#panel button {
-  font-family: inherit; font-size: 11px; cursor: pointer;
-  background: #c0c0c0; color: #000;
-  border: 2px solid; border-color: #fff #404040 #404040 #fff;
-  padding: 3px 6px; margin: 1px 1px 1px 0;
-}
-#panel button:active { border-color: #404040 #fff #fff #404040; }
-#panel button:disabled { color: #808080; cursor: default; }
-#panel select { font-family: inherit; font-size: 11px; width: 100%; }
+.pane button:active { border-color: #404040 #fff #fff #404040; }
+.pane button:disabled { color: #808080; cursor: default; }
+.tasks { display: flex; gap: 2px; margin-top: 3px; }
+.taskbtn { flex: 1; font-size: 9px !important; padding: 2px 1px !important; white-space: nowrap; }
+.taskbtn.cur { background: #000080 !important; color: #fff !important; border-color: #000040 !important; }
 .hero {
   border: 1px solid #808080; margin: 3px 0; padding: 3px;
   background: #d4d4d4;
 }
 .hero.dead { background: #a0a0a0; color: #555; text-decoration: line-through; }
-.hero.selected { outline: 2px solid #1a2a6c; }
+.hero.selected { outline: 2px solid #000080; }
 .bar { height: 7px; background: #808080; border: 1px solid #404040; margin-top: 2px; position: relative; }
 .bar > div { height: 100%; }
 .bar .lbl { position: absolute; right: 2px; top: -1px; font-size: 8px; color: #fff; text-shadow: 1px 1px 0 #000; }
 .hp > div { background: #2a8a2a; }
 .warmth > div { background: #e08018; }
 .hunger > div { background: #b0a020; }
-.morale > div { background: #3a5fcd; }
+.morale > div { background: #1084d0; }
 #log {
-  background: #000; color: #9fd09f; font-size: 11px; height: 150px; overflow-y: auto;
+  background: #fff; color: #000; font-size: 10px; height: 110px; overflow-y: auto;
   border: 2px solid; border-color: #404040 #fff #fff #404040; padding: 3px; white-space: pre-wrap;
+  font-family: "Courier New", monospace;
 }
 .warn { color: #a02020; font-weight: bold; }
 
-/* --- overlays --- */
+/* ---------- taskbar ---------- */
+#taskbar {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 30px;
+  background: #c0c0c0;
+  border-top: 2px solid; border-color: #dfdfdf #808080;
+  display: flex; align-items: center; gap: 4px; padding: 3px 4px;
+}
+#startbtn {
+  display: flex; align-items: center; gap: 4px;
+  font-family: inherit; font-size: 11px;
+  background: #c0c0c0; border: 2px solid; border-color: #fff #404040 #404040 #fff;
+  padding: 2px 8px 2px 4px; cursor: default;
+}
+#flag {
+  display: inline-block; width: 15px; height: 12px;
+  background: conic-gradient(#e00 0 90deg, #0a0 90deg 180deg, #00e 180deg 270deg, #ee0 270deg);
+  transform: skewY(-6deg);
+}
+#taskbtn {
+  display: flex; align-items: center; gap: 5px;
+  width: 190px; font-size: 11px; padding: 3px 6px;
+  border: 2px solid; border-color: #404040 #fff #fff #404040; /* sunken = running */
+  background: #c0c0c0; white-space: nowrap; overflow: hidden;
+}
+.taskicon {
+  width: 14px; height: 14px; flex: 0 0 auto; background: #10131f; position: relative;
+}
+.taskicon::after {
+  content: ""; position: absolute; left: 4px; top: 3px; width: 6px; height: 8px;
+  background: #ff9a2a; clip-path: polygon(50% 0, 100% 62%, 82% 100%, 18% 100%, 0 62%);
+}
+#clock {
+  margin-left: auto; font-size: 11px; padding: 3px 10px;
+  border: 2px solid; border-color: #808080 #fff #fff #808080;
+}
+
+/* ---------- overlays (dialogs over the desktop) ---------- */
 #overlay {
-  position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
-  background: rgba(4, 6, 18, 0.88); z-index: 10;
+  position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+  background: rgba(0, 40, 40, 0.55); z-index: 10;
 }
 #overlay .box {
-  width: 480px; background: #c0c0c0; color: #000; padding: 18px;
-  border: 3px solid; border-color: #fff #404040 #404040 #fff; text-align: center;
+  width: 440px; background: #c0c0c0; color: #000; padding: 0 0 12px;
+  border: 2px solid; border-color: #dfdfdf #404040 #404040 #dfdfdf;
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.5); text-align: center;
+}
+#overlay .box .dlgtitle {
+  height: 20px; display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(90deg, #000080, #1084d0); color: #fff;
+  font-weight: bold; font-size: 11px; padding: 0 4px 0 6px; margin-bottom: 10px;
 }
 #overlay h1 {
-  font-size: 28px; margin: 4px 0 10px; color: #1a2a6c;
-  text-shadow: 2px 2px 0 #9fb4e8; letter-spacing: 2px;
+  font-size: 24px; margin: 4px 0 10px; color: #000080;
+  text-shadow: 1px 1px 0 #dfdfdf; letter-spacing: 2px;
 }
-#overlay p { font-size: 12px; line-height: 1.5; text-align: left; }
+#overlay p { font-size: 11px; line-height: 1.5; text-align: left; padding: 0 16px; }
 #overlay button {
-  font-family: inherit; font-size: 14px; cursor: pointer; margin: 6px;
-  background: #c0c0c0; border: 2px solid; border-color: #fff #404040 #404040 #fff; padding: 6px 14px;
+  font-family: inherit; font-size: 12px; cursor: pointer; margin: 6px;
+  background: #c0c0c0; border: 2px solid; border-color: #fff #404040 #404040 #fff; padding: 5px 14px;
+  min-width: 90px;
 }
 #overlay button:active { border-color: #404040 #fff #fff #404040; }
+
+/* ---------- CRT layer over the whole "monitor" ---------- */
+#desktop-crt {
+  position: absolute; inset: 0; pointer-events: none; z-index: 20;
+  background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.13) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, transparent 58%, rgba(0,0,10,0.42) 100%);
+}
