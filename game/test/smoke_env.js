@@ -58,7 +58,7 @@ BF.installEnv({
   random: () => 0.5,
 });
 
-for (const f of ['audio.js', 'render.js', 'ui.js', 'main.js'])
+for (const f of ['audio.js', 'render.js', 'ui.js', 'desktop.js', 'main.js'])
   eval(fs.readFileSync(path.join(root, 'src', f), 'utf8'));
 
 let failed = 0;
@@ -80,6 +80,13 @@ ok(BF.getSim().hero('sword').task === 'hunt', 'Hunt task button click landed mid
 els['game'].handlers.click({ clientX: 320, clientY: 300 });
 ok(true, 'canvas click handled without exceptions');
 ok('bonfire_winter_survivors_save' in storage, 'run autosaved via mocked localStorage');
+
+// desktop shell: start menu toggle + mock app windows
+els['startbtn'].onclick();
+BF.Desktop.openSpider();
+BF.Desktop.openNotepad();
+pump(30, 70000);
+ok(true, 'start menu + Spider Solitaire + Notepad opened without exceptions');
 
 console.log(failed ? failed + ' FAILED' : 'SMOKE OK');
 process.exit(failed ? 1 : 0);

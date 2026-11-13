@@ -125,6 +125,7 @@
     canvas = doc.getElementById('game');
     renderer = new BF.Renderer(canvas);
     BF.UI.build();
+    if (BF.Desktop) BF.Desktop.init();
     BF.getSim = () => sim; // debug/tests
     wireInput(canvas);
 
@@ -155,6 +156,11 @@
     let hasSave = false;
     try { hasSave = !!(store() && store().getItem(SAVE_KEY)); } catch (e) { /* ignore */ }
     BF.UI.showTitle(hasSave, newRun, continueRun);
+    BF.reopenTitle = () => {
+      let hs = false;
+      try { hs = !!(store() && store().getItem(SAVE_KEY)); } catch (e) { /* ignore */ }
+      BF.UI.showTitle(hs, newRun, continueRun);
+    };
     BF.env.requestAnimationFrame(frame);
   }
 

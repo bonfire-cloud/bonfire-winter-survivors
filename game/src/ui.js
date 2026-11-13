@@ -206,9 +206,19 @@
       }
     },
 
+    /* Dialogs float above the windows, are draggable by their title bar, and
+     * can be dismissed with ✕ — the desktop stays fully usable underneath. */
+    wireDialog(o) {
+      const box = o.querySelector('.box');
+      if (box) { box.style.left = '292px'; box.style.top = '110px'; }
+      const x = o.querySelector('.dlgx');
+      if (x) x.onclick = () => { o.style.display = 'none'; };
+      if (BF.Desktop && BF.Desktop.drag) BF.Desktop.drag(box, o.querySelector('.dlgtitle'));
+    },
+
     showTitle(hasSave, onNew, onContinue) {
       const o = overlay();
-      o.style.display = 'flex';
+      o.style.display = 'block';
       o.innerHTML =
         '<div class="box">' +
         '<div class="dlgtitle"><span>BONFIRE: WINTER SURVIVORS — Setup</span><span class="dlgx">✕</span></div>' +
@@ -225,12 +235,13 @@
         '</div>';
       o.querySelector('#btn-new').onclick = () => { o.style.display = 'none'; onNew(); };
       if (hasSave) o.querySelector('#btn-cont').onclick = () => { o.style.display = 'none'; onContinue(); };
+      UI.wireDialog(o);
     },
 
     showEnd(sim, onNew) {
       const o = overlay();
       const won = sim.status === 'won';
-      o.style.display = 'flex';
+      o.style.display = 'block';
       o.innerHTML =
         '<div class="box">' +
         '<div class="dlgtitle"><span>BONFIRE: WINTER SURVIVORS — ' + (won ? 'Victory' : 'Game Over') + '</span><span class="dlgx">✕</span></div>' +
@@ -246,6 +257,7 @@
         '<button id="btn-new">NEW RUN</button>' +
         '</div>';
       o.querySelector('#btn-new').onclick = () => { o.style.display = 'none'; onNew(); };
+      UI.wireDialog(o);
     },
 
     hideOverlay() { overlay().style.display = 'none'; },

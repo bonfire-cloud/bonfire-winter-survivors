@@ -37,17 +37,20 @@ body {
   clip-path: polygon(50% 0, 100% 62%, 82% 100%, 18% 100%, 0 62%);
 }
 
-/* ---------- game window ---------- */
-#window {
-  position: absolute; left: 10px; top: 34px; width: 1004px;
+/* ---------- windows (game + mock apps) ---------- */
+.win {
+  position: absolute;
   background: #c0c0c0;
   border: 2px solid; border-color: #dfdfdf #404040 #404040 #dfdfdf;
   box-shadow: 2px 2px 0 rgba(0,0,0,0.5);
 }
-#wintitle {
+#window { left: 10px; top: 34px; width: 1004px; }
+.wintitle {
   height: 20px; display: flex; align-items: center; justify-content: space-between;
   background: linear-gradient(90deg, #000080, #1084d0);
   padding: 0 3px 0 6px;
+  cursor: default;
+  user-select: none;
 }
 .wtitle { color: #fff; font-weight: bold; font-size: 11px; letter-spacing: 0.5px; text-shadow: 1px 1px 0 #000; }
 .wbtns button {
@@ -58,13 +61,14 @@ body {
   padding: 0;
 }
 .wbtns button:active { border-color: #404040 #fff #fff #404040; }
-#menubar {
+.winmenu {
   display: flex; gap: 2px; padding: 2px 4px;
   background: #c0c0c0; font-size: 11px; color: #000;
   border-bottom: 1px solid #808080;
 }
-#menubar span { padding: 1px 6px; }
-#menubar span:hover { background: #000080; color: #fff; }
+.winmenu span { padding: 1px 6px; cursor: default; }
+.winmenu span:hover { background: #000080; color: #fff; }
+.winclient { position: relative; overflow: auto; background: #fff; margin: 0 2px 2px; border: 2px solid; border-color: #404040 #fff #fff #404040; height: calc(100% - 46px); }
 
 /* ---------- game layout inside the window ---------- */
 #wrap { display: flex; gap: 6px; padding: 6px; align-items: flex-start; }
@@ -144,11 +148,66 @@ body {
   background: conic-gradient(#e00 0 90deg, #0a0 90deg 180deg, #00e 180deg 270deg, #ee0 270deg);
   transform: skewY(-6deg);
 }
-#taskbtn {
+#taskbtn, .taskbtn2 {
   display: flex; align-items: center; gap: 5px;
   width: 190px; font-size: 11px; padding: 3px 6px;
   border: 2px solid; border-color: #404040 #fff #fff #404040; /* sunken = running */
   background: #c0c0c0; white-space: nowrap; overflow: hidden;
+  cursor: default;
+}
+#taskbtn.on, .taskbtn2.on { border-color: #404040 #fff #fff #404040; background: #d4d4d4; font-weight: bold; }
+#taskbtn:not(.on), .taskbtn2:not(.on) { border-color: #fff #404040 #404040 #fff; font-weight: normal; }
+
+/* ---------- start menu ---------- */
+#startmenu {
+  position: absolute; left: 2px; bottom: 32px; width: 210px; z-index: 60;
+  display: none;
+  background: #c0c0c0;
+  border: 2px solid; border-color: #fff #404040 #404040 #fff;
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+}
+.sm-side {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 22px;
+  background: linear-gradient(180deg, #000080, #1084d0);
+  color: #fff;
+}
+.sm-side span {
+  position: absolute; bottom: 6px; left: 3px;
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  font-size: 14px; letter-spacing: 1px; white-space: nowrap;
+}
+.sm-items { margin-left: 22px; padding: 3px 0; }
+.sm-item { position: relative; padding: 5px 18px 5px 10px; font-size: 11px; cursor: default; }
+.sm-item:hover { background: #000080; color: #fff; }
+.sm-item i { float: right; font-style: normal; }
+.sm-sub {
+  display: none; position: absolute; left: calc(100% - 2px); top: -3px; min-width: 190px;
+  background: #c0c0c0; border: 2px solid; border-color: #fff #404040 #404040 #fff;
+  padding: 2px 0; z-index: 61;
+}
+.sm-sub .sm-item { padding: 4px 10px; }
+.sm-sep { height: 2px; margin: 3px 4px; border-top: 1px solid #808080; border-bottom: 1px solid #fff; }
+
+/* ---------- mock apps ---------- */
+.nptext {
+  width: 100%; height: 100%; border: none; outline: none; resize: none;
+  font-family: "Courier New", monospace; font-size: 12px; padding: 3px;
+  background: #fff; color: #000;
+}
+.winclient.spider { background: #0b6623; overflow: hidden; }
+.card {
+  position: absolute; width: 40px; height: 56px;
+  background: #fff; border: 1px solid #000; border-radius: 3px;
+  font-size: 11px; font-weight: bold; padding: 2px; line-height: 1.1;
+}
+.card.back { background: repeating-linear-gradient(45deg, #00c 0 3px, #008 3px 6px); border-color: #fff; }
+
+/* ---------- shutdown screen ---------- */
+#shutdown {
+  position: absolute; inset: 0; z-index: 15; display: none;
+  background: #000; color: #ff8000; cursor: pointer;
+  text-align: center; padding-top: 320px;
+  font-family: "Courier New", monospace; font-size: 22px; font-weight: bold;
 }
 .taskicon {
   width: 14px; height: 14px; flex: 0 0 auto; background: #10131f; position: relative;
@@ -162,12 +221,15 @@ body {
   border: 2px solid; border-color: #808080 #fff #fff #808080;
 }
 
-/* ---------- overlays (dialogs over the desktop) ---------- */
+/* ---------- dialogs (floating windows over the desktop) ---------- */
 #overlay {
-  position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
-  background: rgba(0, 40, 40, 0.55); z-index: 10;
+  position: absolute; inset: 0; display: none; z-index: 70;
+  background: rgba(0, 30, 30, 0.25);
+  pointer-events: none; /* clicks pass through to the desktop */
 }
 #overlay .box {
+  position: absolute; left: 292px; top: 120px;
+  pointer-events: auto;
   width: 440px; background: #c0c0c0; color: #000; padding: 0 0 12px;
   border: 2px solid; border-color: #dfdfdf #404040 #404040 #dfdfdf;
   box-shadow: 3px 3px 0 rgba(0,0,0,0.5); text-align: center;
@@ -177,7 +239,11 @@ body {
   background: linear-gradient(90deg, #000080, #1084d0); color: #fff;
   font-weight: bold; font-size: 11px; padding: 0 4px 0 6px; margin-bottom: 10px;
 }
-#overlay .dlgx { font-weight: normal; }
+#overlay .dlgx {
+  font-weight: normal; cursor: pointer; padding: 0 5px; margin-right: 2px;
+  border: 1px solid rgba(255,255,255,0.6);
+}
+#overlay .dlgtitle { cursor: default; user-select: none; }
 #overlay .dlgimg {
   display: block; margin: 4px auto 8px; width: 240px; height: auto; /* aspect preserved from the image itself */
   image-rendering: pixelated; image-rendering: crisp-edges;
@@ -198,7 +264,7 @@ body {
 
 /* ---------- CRT layer over the whole "monitor" ---------- */
 #desktop-crt {
-  position: absolute; inset: 0; pointer-events: none; z-index: 20;
+  position: absolute; inset: 0; pointer-events: none; z-index: 100;
   background:
     repeating-linear-gradient(0deg, rgba(0,0,0,0.13) 0 1px, transparent 1px 3px),
     radial-gradient(ellipse at center, transparent 58%, rgba(0,0,10,0.42) 100%);

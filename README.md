@@ -135,7 +135,8 @@ original — plus a playable implementation of the design, built today:
 - `IMPLEMENTATION_PLAN.md` — the plan (engine choice, systems, milestones)
 - `game/` — the playable build: zero-dependency HTML5 canvas at 640×480,
   isometric 20×15 grid with cell-by-cell movement, 8-bit-style pixel sprites,
-  CRT scanline overlay
+  CRT scanline overlay — wrapped in a mock Windows 95 desktop (Start menu,
+  draggable/minimizable windows, taskbar, mock Notepad and Spider Solitaire)
 
 ### Run it
 
