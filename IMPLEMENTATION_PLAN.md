@@ -1,6 +1,7 @@
 # IMPLEMENTATION PLAN — Bonfire: Winter Survivors
 
-Status: draft v0.1
+Status: **implemented** — playable build in `game/`, 41 headless tests green
+(`node game/test/run_tests.js`). See §12 for what shipped vs. this plan.
 Companion to: [README.md](README.md) (the concept / box mockup)
 
 ## 1. What we're building
@@ -24,11 +25,17 @@ The core rule: **every system feeds the fire.** The fire is the safe zone
 
 ## 3. Tech stack
 
-- **Engine:** Godot 4.x, GDScript.
+- **Engine (shipped):** zero-dependency HTML5 canvas + vanilla JS, no build
+  step. The pure simulation core (`game/src/core/`) runs in both the browser
+  and Node, so every system is unit-testable headless. This resolves open
+  question #1 in favor of the plan's web alternative (Phaser-class), minus the
+  dependency: isometric diamond-tile rendering and a radial-gradient firelight
+  ring replace Godot tilemaps/2D lights 1:1.
+- **Engine (original recommendation):** Godot 4.x, GDScript.
   Why: free/MIT, first-class 2D isometric tilemaps, 2D lighting (ideal for the
   firelight ring), fast iteration, exports to Windows/macOS/Linux.
   Alternatives considered: Unity (heavier, slower iteration), Bevy/Rust (more
-  boilerplate for UI-heavy RPG), Phaser (web-only distribution).
+  boilerplate for UI-heavy RPG).
 - **Art:** Aseprite for pixel work; optional Blender pre-render pipeline for
   the "pre-rendered sprite" isometric look (Fallout-style). Base resolution
   640×480, 256-color palette, ordered dithering, scaled up with nearest
@@ -175,7 +182,28 @@ Total: ~16–19 weeks to a shippable vertical slice → full campaign.
 
 ## 11. Open questions
 
-1. Confirm Godot 4 as engine (vs. Unity/Bevy) — recommendation is Godot.
-2. Art pipeline: pure 2D pixel vs. Blender pre-rendered sprites — decide at M0.
-3. Castle scope: single floor or multi-floor dungeon?
-4. Any post-launch modes (endless winter) or campaign only?
+1. ~~Confirm Godot 4 as engine~~ — resolved: zero-dependency web/canvas (§3).
+2. Art pipeline: pure 2D pixel vs. Blender pre-rendered sprites — shipped as
+   canvas-drawn pixel art at 640×480 with nearest-neighbor upscale.
+3. Castle scope: shipped as a single assault arena with a boss (the intended
+   difficulty spike) plus escalating beast spawns.
+4. Post-launch modes: campaign only; every run is a new seed.
+
+## 12. Implementation status (what shipped)
+
+| Plan item | Shipped |
+|---|---|
+| M0 project setup + art pipeline | `game/` static site, 640×480 pixelated canvas, Win95-style UI chrome |
+| M1 core loop skeleton | `GameClock` day/dusk/night, canvas loop, hero movement |
+| M2 FireSim + light | `FireSim`: wood/size/hp, light radius = safe zone, castle visibility, relight |
+| M3 party + day phase | 4 heroes, task assignment (wood/hunt/scout/rest), dusk yields, late returns |
+| M4 night defense | Beasts spawn outside the ring, attack heroes and the fire, watch toggle, click-to-strike |
+| M5 camp + conversations | Food/blanket allocation, fireside talk with bond/grudge deltas affecting morale and damage |
+| M6 ember run + castle + permadeath | Torch-timer ember run between camp sites, castle assault + boss, permanent death, seeded runs, localStorage saves |
+| M7 content + audio | Randomized event deck (10 events), WebAudio tracker-style loop + fire crackle (`src/audio.js`) |
+| Tests | `game/test/run_tests.js` — 41 assertions incl. full win run and full wipe run |
+
+Deviations from plan: no Godot (web build instead), no tracker files (WebAudio
+synth instead), campaign pacing compressed for dev (phase durations are
+options on `GameSim`; the 10–12h structure — sites, events, castle spike — is
+intact and tunable via `opts`).

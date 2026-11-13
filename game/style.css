@@ -1,0 +1,83 @@
+/* Bonfire: Winter Survivors — 1996-era chrome. 640x480 game, pixelated upscale. */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #10131f; }
+body {
+  font-family: "Courier New", monospace;
+  color: #d8dce8;
+  display: flex; align-items: center; justify-content: center;
+}
+#wrap { display: flex; gap: 10px; padding: 10px; }
+#left { display: flex; flex-direction: column; gap: 6px; }
+#titlebar {
+  background: linear-gradient(90deg, #1a2a6c, #3a5fcd);
+  color: #fff; padding: 4px 8px; font-weight: bold; letter-spacing: 1px;
+  font-size: 13px; text-shadow: 1px 1px 0 #000;
+}
+#game {
+  width: 960px; height: 720px;   /* 1.5x upscale */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: #000;
+  border: 2px solid #444;
+}
+#hint { font-size: 11px; color: #7a819a; }
+
+/* --- Win95-ish panel --- */
+#panel {
+  width: 320px; max-height: 720px; overflow-y: auto;
+  background: #c0c0c0; color: #000;
+  border: 2px solid; border-color: #fff #404040 #404040 #fff;
+  padding: 6px; font-size: 12px;
+}
+#panel h3 {
+  margin: 6px 0 4px; font-size: 12px; background: linear-gradient(90deg,#1a2a6c,#3a5fcd);
+  color: #fff; padding: 2px 6px;
+}
+#panel .row { display: flex; justify-content: space-between; margin: 1px 0; }
+#panel button {
+  font-family: inherit; font-size: 11px; cursor: pointer;
+  background: #c0c0c0; color: #000;
+  border: 2px solid; border-color: #fff #404040 #404040 #fff;
+  padding: 3px 6px; margin: 1px 1px 1px 0;
+}
+#panel button:active { border-color: #404040 #fff #fff #404040; }
+#panel button:disabled { color: #808080; cursor: default; }
+#panel select { font-family: inherit; font-size: 11px; width: 100%; }
+.hero {
+  border: 1px solid #808080; margin: 3px 0; padding: 3px;
+  background: #d4d4d4;
+}
+.hero.dead { background: #a0a0a0; color: #555; text-decoration: line-through; }
+.hero.selected { outline: 2px solid #1a2a6c; }
+.bar { height: 7px; background: #808080; border: 1px solid #404040; margin-top: 2px; position: relative; }
+.bar > div { height: 100%; }
+.bar .lbl { position: absolute; right: 2px; top: -1px; font-size: 8px; color: #fff; text-shadow: 1px 1px 0 #000; }
+.hp > div { background: #2a8a2a; }
+.warmth > div { background: #e08018; }
+.hunger > div { background: #b0a020; }
+.morale > div { background: #3a5fcd; }
+#log {
+  background: #000; color: #9fd09f; font-size: 11px; height: 150px; overflow-y: auto;
+  border: 2px solid; border-color: #404040 #fff #fff #404040; padding: 3px; white-space: pre-wrap;
+}
+.warn { color: #a02020; font-weight: bold; }
+
+/* --- overlays --- */
+#overlay {
+  position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+  background: rgba(4, 6, 18, 0.88); z-index: 10;
+}
+#overlay .box {
+  width: 480px; background: #c0c0c0; color: #000; padding: 18px;
+  border: 3px solid; border-color: #fff #404040 #404040 #fff; text-align: center;
+}
+#overlay h1 {
+  font-size: 28px; margin: 4px 0 10px; color: #1a2a6c;
+  text-shadow: 2px 2px 0 #9fb4e8; letter-spacing: 2px;
+}
+#overlay p { font-size: 12px; line-height: 1.5; text-align: left; }
+#overlay button {
+  font-family: inherit; font-size: 14px; cursor: pointer; margin: 6px;
+  background: #c0c0c0; border: 2px solid; border-color: #fff #404040 #404040 #fff; padding: 6px 14px;
+}
+#overlay button:active { border-color: #404040 #fff #fff #404040; }

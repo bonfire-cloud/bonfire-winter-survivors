@@ -129,11 +129,29 @@ C:\BONFIRE> BONFIRE.EXE
 ## About this repo
 
 This repository is a **concept mockup** for the box above — there is no 1996
-original to play. It currently contains:
+original — plus a playable implementation of the design, built today:
 
 - `images/cover-image.png` — the box art
-- `IMPLEMENTATION_PLAN.md` — a concrete plan for actually building this game
-  today
+- `IMPLEMENTATION_PLAN.md` — the plan (engine choice, systems, milestones)
+- `game/` — the playable build (zero-dependency HTML5 canvas, 640×480)
 
-See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for engine choice, system
-design, and milestones.
+### Run it
+
+Open `game/index.html` in any browser, or serve the folder:
+
+```
+python3 -m http.server     # then visit http://localhost:8000/game/
+```
+
+### Test it (headless, Node)
+
+```
+node game/test/run_tests.js
+```
+
+41 tests cover the fire sim, the day/night clock, warmth and the ring of
+light, permadeath, ember runs, save/load determinism, and two full simulated
+runs — a competent party that wins, and a neglected camp that freezes.
+
+See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for system design and
+milestones.
