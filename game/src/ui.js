@@ -206,19 +206,43 @@
       }
     },
 
-    /* Dialogs float above the windows, are draggable by their title bar, and
-     * can be dismissed with ✕ — the desktop stays fully usable underneath. */
+    /* Win95 child modal: the dialog floats over its OWNER (the game window),
+     * which is disabled while the dialog is up; the rest of the desktop stays
+     * fully interactive. No backdrop. */
+    setOwnerEnabled(on) {
+      const w = BF.env.document.getElementById('window');
+      if (!w) return;
+      w.classList.toggle('disabled', !on);
+      w.style.pointerEvents = on ? '' : 'none';
+    },
+
+    hideDialog() {
+      overlay().style.display = 'none';
+      UI.setOwnerEnabled(true);
+    },
+
     wireDialog(o) {
       const box = o.querySelector('.box');
-      if (box) { box.style.left = '292px'; box.style.top = '110px'; }
+      // center the dialog over the owner window
+      if (box) {
+        const gw = BF.env.document.getElementById('window');
+        if (gw) {
+          const gl = parseFloat(gw.style.left) || 10;
+          const gt = parseFloat(gw.style.top) || 34;
+          box.style.left = Math.max(0, gl + (1004 - 440) / 2) + 'px';
+          box.style.top = Math.max(0, gt + 60) + 'px';
+        }
+      }
       const x = o.querySelector('.dlgx');
-      if (x) x.onclick = () => { o.style.display = 'none'; };
+      if (x) x.onclick = () => UI.hideDialog();
       if (BF.Desktop && BF.Desktop.drag) BF.Desktop.drag(box, o.querySelector('.dlgtitle'));
     },
 
     showTitle(hasSave, onNew, onContinue) {
       const o = overlay();
+      UI.setOwnerEnabled(false);
       o.style.display = 'block';
+      if (BF.Desktop && BF.Desktop.claimZ) o.style.zIndex = BF.Desktop.claimZ(); // above owner & all windows so far
       o.innerHTML =
         '<div class="box">' +
         '<div class="dlgtitle"><span>BONFIRE: WINTER SURVIVORS — Setup</span><span class="dlgx">✕</span></div>' +
@@ -233,15 +257,17 @@
         '<button id="btn-new">NEW RUN</button>' +
         (hasSave ? '<button id="btn-cont">CONTINUE</button>' : '') +
         '</div>';
-      o.querySelector('#btn-new').onclick = () => { o.style.display = 'none'; onNew(); };
-      if (hasSave) o.querySelector('#btn-cont').onclick = () => { o.style.display = 'none'; onContinue(); };
+      o.querySelector('#btn-new').onclick = () => { UI.hideDialog(); onNew(); };
+      if (hasSave) o.querySelector('#btn-cont').onclick = () => { UI.hideDialog(); onContinue(); };
       UI.wireDialog(o);
     },
 
     showEnd(sim, onNew) {
       const o = overlay();
       const won = sim.status === 'won';
+      UI.setOwnerEnabled(false);
       o.style.display = 'block';
+      if (BF.Desktop && BF.Desktop.claimZ) o.style.zIndex = BF.Desktop.claimZ();
       o.innerHTML =
         '<div class="box">' +
         '<div class="dlgtitle"><span>BONFIRE: WINTER SURVIVORS — ' + (won ? 'Victory' : 'Game Over') + '</span><span class="dlgx">✕</span></div>' +
@@ -256,7 +282,7 @@
         '<p style="font-size:10px;color:#555">PC Gamer: 9/10 — "One idea, tied through everything."</p>' +
         '<button id="btn-new">NEW RUN</button>' +
         '</div>';
-      o.querySelector('#btn-new').onclick = () => { o.style.display = 'none'; onNew(); };
+      o.querySelector('#btn-new').onclick = () => { UI.hideDialog(); onNew(); };
       UI.wireDialog(o);
     },
 

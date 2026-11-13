@@ -5,7 +5,9 @@
   const BF = globalThis.BF;
   const DESK_W = 1024, DESK_H = 768, TASKBAR_H = 30;
 
-  let zTop = 30;
+  // windows stack ABOVE the modal-dialog layer (z 70): a Win95 modal only owns
+  // its parent window; other windows may still be raised over it
+  let zTop = 80;
   const wins = []; // {id, title, el, btn, minimized, maximized, prev}
 
   const doc = () => BF.env.document;
@@ -22,6 +24,10 @@
     w.el.style.zIndex = ++zTop;
     wins.forEach(o => { o.focused = o === w; if (o.btn) o.btn.classList.toggle('on', o.focused); });
   }
+
+  /* A modal dialog claims a z just above every current window (it owns the
+   * game window); windows raised later still stack above the dialog. */
+  function claimZ() { return ++zTop; }
 
   function minimize(w) {
     w.el.style.display = 'none';
@@ -237,30 +243,39 @@
     sm.innerHTML =
       '<div class="sm-side"><span>Windows<b>95</b></span></div>' +
       '<div class="sm-items">' +
-      '<div class="sm-item" data-sub="programs">Programs <i>▸</i>' +
+      '<div class="sm-item" data-sub="programs">Programs <i>►</i>' +
       '  <div class="sm-sub" id="sub-programs">' +
       '    <div class="sm-item" data-app="bonfire">Bonfire: Winter Survivors</div>' +
       '    <div class="sm-item" data-app="spider">Spider Solitaire</div>' +
       '    <div class="sm-item" data-app="notepad">Notepad</div>' +
       '  </div>' +
       '</div>' +
-      '<div class="sm-item" data-app="readme">Documents ▸ README.txt</div>' +
+      '<div class="sm-item" data-app="readme">Documents ► README.txt</div>' +
       '<div class="sm-item" data-app="help">Help</div>' +
       '<div class="sm-sep"></div>' +
       '<div class="sm-item" data-app="shutdown">Shut Down...</div>' +
       '</div>';
     el('desktop').appendChild(sm);
     startMenu = sm;
+    // clicks inside the menu must not bubble to the document handler that closes it
+    sm.onclick = (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); };
+    // leaving the menu entirely collapses any open submenu
+    sm.onmouseleave = () => { sm.querySelectorAll('.sm-sub').forEach(s2 => { s2.style.display = 'none'; }); };
     sm.querySelectorAll('.sm-item').forEach(it => {
       it.onmouseenter = () => {
-        // hide only submenus the hovered item does NOT own (submenu items are .sm-item too)
+        // hide only submenus unrelated to the hovered item — related means the item
+        // OWNS the submenu (top-level parent) or is INSIDE it (submenu entry)
         sm.querySelectorAll('.sm-sub').forEach(s2 => {
-          if (!(it.contains && it.contains(s2))) s2.style.display = 'none';
+          const related = it.contains && (it.contains(s2) || s2.contains(it));
+          if (!related) s2.style.display = 'none';
         });
         const sub = it.querySelector('.sm-sub');
         if (sub) sub.style.display = 'block';
       };
-      it.onclick = () => {
+      it.onclick = (ev) => {
+        if (ev && ev.stopPropagation) ev.stopPropagation();
+        const sub = it.querySelector('.sm-sub');
+        if (sub) { sub.style.display = 'block'; return; } // parent item: click opens submenu, menu stays
         const app = it.dataset.app;
         closeStart();
         if (app === 'bonfire') { const w = getWin('game'); if (w) { w.closed = false; restore(w); if (w.btn) w.btn.style.display = ''; } }
@@ -310,5 +325,5 @@
     if (icon) icon.ondblclick = () => { if (BF.reopenTitle) BF.reopenTitle(); };
   }
 
-  BF.Desktop = { init, openNotepad, openSpider, drag };
+  BF.Desktop = { init, openNotepad, openSpider, drag, claimZ };
 })();
