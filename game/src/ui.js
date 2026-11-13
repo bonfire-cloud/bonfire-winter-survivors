@@ -211,6 +211,8 @@
       o.style.display = 'flex';
       o.innerHTML =
         '<div class="box">' +
+        '<div class="dlgtitle"><span>BONFIRE: WINTER SURVIVORS — Setup</span><span class="dlgx">✕</span></div>' +
+        '<img class="dlgimg" src="cover-16c.png" alt="Bonfire: Winter Survivors box art (16 colours)">' +
         '<h1>BONFIRE<br>WINTER SURVIVORS</h1>' +
         '<p>Four survivors. One frozen valley. A castle on the hill that is lit every night — ' +
         'and something in the treeline with glowing eyes that only firelight keeps back.</p>' +
@@ -231,6 +233,8 @@
       o.style.display = 'flex';
       o.innerHTML =
         '<div class="box">' +
+        '<div class="dlgtitle"><span>BONFIRE: WINTER SURVIVORS — ' + (won ? 'Victory' : 'Game Over') + '</span><span class="dlgx">✕</span></div>' +
+        '<img class="dlgimg" src="cover-16c.png" alt="box art (16 colours)">' +
         '<h1>' + (won ? 'THE FIRE HOLDS' : 'THE VALLEY KEEPS ITS SURVIVORS') + '</h1>' +
         '<p>' + (won
           ? 'The thing in the castle is dead. Your fire burns on the last campsite, and the valley is quiet at last.'

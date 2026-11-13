@@ -177,6 +177,13 @@ body {
   background: linear-gradient(90deg, #000080, #1084d0); color: #fff;
   font-weight: bold; font-size: 11px; padding: 0 4px 0 6px; margin-bottom: 10px;
 }
+#overlay .dlgx { font-weight: normal; }
+#overlay .dlgimg {
+  display: block; margin: 4px auto 8px; width: 240px; height: auto; /* aspect preserved from the image itself */
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  border: 2px solid; border-color: #404040 #fff #fff #404040;
+  background: #000;
+}
 #overlay h1 {
   font-size: 24px; margin: 4px 0 10px; color: #000080;
   text-shadow: 1px 1px 0 #dfdfdf; letter-spacing: 2px;
