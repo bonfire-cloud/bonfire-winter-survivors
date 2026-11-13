@@ -194,13 +194,22 @@ body {
   font-family: "Courier New", monospace; font-size: 12px; padding: 3px;
   background: #fff; color: #000;
 }
-.winclient.spider { background: #0b6623; overflow: hidden; }
+.winclient.spider { background: #0b6623; overflow: auto; }
+.sp-top {
+  display: flex; gap: 16px; padding: 4px 8px;
+  color: #fff; font-size: 11px; font-family: Tahoma, sans-serif;
+  background: rgba(0,0,0,0.25);
+}
+.sp-win { color: #ffe080; font-size: 13px; }
+.sp-stockpile { cursor: pointer; }
 .card {
   position: absolute; width: 40px; height: 56px;
   background: #fff; border: 1px solid #000; border-radius: 3px;
   font-size: 11px; font-weight: bold; padding: 2px; line-height: 1.1;
+  cursor: default; user-select: none;
 }
 .card.back { background: repeating-linear-gradient(45deg, #00c 0 3px, #008 3px 6px); border-color: #fff; }
+.card.sel { outline: 2px solid #ffe080; }
 
 /* ---------- shutdown screen ---------- */
 #shutdown {

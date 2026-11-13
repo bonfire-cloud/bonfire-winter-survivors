@@ -24,6 +24,8 @@ jobs:
           node-version: 24
       - name: Run headless game tests
         run: node game/test/run_tests.js
+      - name: Run Spider Solitaire core tests
+        run: node game/test/spider_tests.js
       - name: Run mocked-environment smoke test
         run: node game/test/smoke_env.js
 

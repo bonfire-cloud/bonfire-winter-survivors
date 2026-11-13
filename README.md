@@ -162,8 +162,9 @@ https://bonfire-cloud.github.io/bonfire-winter-survivors/
 ### Test it (headless, Node)
 
 ```
-node game/test/run_tests.js     # 58 unit/integration tests of the pure core
-node game/test/smoke_env.js     # boots the full browser shell on a mocked env
+node game/test/run_tests.js      # 58 tests of the pure game core
+node game/test/spider_tests.js   # Spider Solitaire rules (pure core)
+node game/test/smoke_env.js      # boots the full browser shell on a mocked env
 ```
 
 The tests cover grid/BFS movement, the fire sim, the day/night clock, warmth

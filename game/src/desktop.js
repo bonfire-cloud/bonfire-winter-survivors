@@ -1,6 +1,7 @@
 /* desktop.js — mock Windows 95 shell: Start menu, window drag / minimize /
- * maximize / close, taskbar buttons, and mock apps (Notepad, Spider Solitaire).
- * All host access goes through BF.env so tests can mock it. */
+ * maximize / close, taskbar buttons, and an app registry (BF.Apps) that the
+ * mock apps in src/apps/ register themselves into. All host access goes
+ * through BF.env so tests can mock it. */
 (function () {
   const BF = globalThis.BF;
   const DESK_W = 1024, DESK_H = 768, TASKBAR_H = 30;
@@ -8,11 +9,19 @@
   // windows stack ABOVE the modal-dialog layer (z 70): a Win95 modal only owns
   // its parent window; other windows may still be raised over it
   let zTop = 80;
-  const wins = []; // {id, title, el, btn, minimized, maximized, prev}
+  const wins = []; // {id, title, el, btn, minimized, maximized, closed, prev}
 
   const doc = () => BF.env.document;
   const el = (id) => doc().getElementById(id);
   const mk = (tag) => doc().createElement(tag);
+
+  /* App registry: src/apps/*.js call BF.Apps.register(id, {title,w,h,x,y,open}) */
+  BF.Apps = {
+    list: {},
+    register(id, def) { this.list[id] = def; },
+    get(id) { return this.list[id]; },
+    open(id, arg) { const d = this.list[id]; if (d) return d.open(arg); },
+  };
 
   function viewScale() {
     const d = el('desktop');
@@ -45,6 +54,7 @@
     minimize(w);
     if (w.btn) w.btn.style.display = 'none';
     w.closed = true;
+    if (w.id === 'game' && BF.onGameClosed) BF.onGameClosed();
   }
 
   function maximize(w) {
@@ -145,90 +155,11 @@
     return w;
   }
 
-  // ---------- mock apps ----------
-
-  const NOTE_TEXT = [
-    'BONFIRE: WINTER SURVIVORS - readme.txt',
-    '========================================',
-    '',
-    'The bonfire is the whole game.',
-    'Its light radius is your safe zone.',
-    'A big fire keeps the beasts back but burns',
-    'wood fast and is visible from the castle.',
-    '',
-    'By day: send survivors to Wood / Hunt / Scout.',
-    'Woodcutters must reach an actual tree cell.',
-    'By night: defend the ring of light. Click beasts.',
-    'Carry embers to move camp. Death is permanent.',
-    '',
-    '486 DX/33 - 8 MB RAM - 4 MB VGA - CD-ROM',
-    '(3dfx support sold separately, obviously)',
-  ].join('\n');
-
-  function openNotepad(text) {
-    const w = openWindow('notepad', (text !== undefined ? 'Notepad' : 'README.txt - Notepad'), 460, 340, 140, 90, (win) => {
-      const ta = mk('textarea');
-      ta.className = 'nptext';
-      ta.value = NOTE_TEXT;
-      win.el.querySelector('.winclient').appendChild(ta);
-      win._ta = ta;
-    });
-    if (text !== undefined && w._ta) w._ta.value = text;
-    return w;
-  }
-
-  const SUITS = ['♠', '♥', '♦', '♣'];
-  const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-
-  function dealSpider(w) {
-    const client = w.el.querySelector('.winclient');
-    client.innerHTML = '';
-    client.className = 'winclient spider';
-    const cards = [];
-    for (let d = 0; d < 2; d++)
-      for (const s of SUITS) for (const r of RANKS) cards.push({ r, s });
-    for (let i = cards.length - 1; i > 0; i--) { // shuffle via env.random (mockable)
-      const j = Math.floor(BF.env.random() * (i + 1));
-      [cards[i], cards[j]] = [cards[j], cards[i]];
-    }
-    // stock pile
-    const stock = mk('div');
-    stock.className = 'card back';
-    stock.style.left = '8px'; stock.style.top = '8px';
-    client.appendChild(stock);
-    // 10 tableau columns
-    let ci = 0;
-    const counts = [6, 6, 6, 6, 5, 5, 5, 5, 5, 5];
-    for (let col = 0; col < 10; col++) {
-      const x = 8 + col * 50;
-      for (let k = 0; k < counts[col]; k++) {
-        const c = cards[ci++];
-        const faceUp = k === counts[col] - 1;
-        const d = mk('div');
-        d.className = 'card' + (faceUp ? '' : ' back');
-        d.style.left = x + 'px';
-        d.style.top = (80 + k * (faceUp ? 16 : 8)) + 'px';
-        if (faceUp) {
-          d.textContent = c.r + c.s;
-          d.style.color = (c.s === '♥' || c.s === '♦') ? '#c00' : '#000';
-        }
-        client.appendChild(d);
-      }
-    }
-  }
-
-  function openSpider() {
-    const w = openWindow('spider', 'Spider Solitaire', 520, 430, 250, 60, (win) => {
-      const menu = win.el.querySelector('.winmenu');
-      const game = menu && menu.querySelector('span');
-      if (game) {
-        game.textContent = 'Game';
-        game.title = 'New Game';
-        game.onclick = () => dealSpider(win);
-      }
-    });
-    dealSpider(w);
-    return w;
+  /* Close the game window = quit to desktop; reopening shows the title dialog. */
+  function reopenGame() {
+    const w = getWin('game');
+    if (w) { w.closed = false; restore(w); if (w.btn) w.btn.style.display = ''; }
+    if (BF.reopenTitle) BF.reopenTitle();
   }
 
   // ---------- start menu ----------
@@ -244,7 +175,7 @@
       '<div class="sm-side"><span>Windows<b>95</b></span></div>' +
       '<div class="sm-items">' +
       '<div class="sm-item" data-sub="programs">Programs <i>►</i>' +
-      '  <div class="sm-sub" id="sub-programs">' +
+      '  <div class="sm-sub">' +
       '    <div class="sm-item" data-app="bonfire">Bonfire: Winter Survivors</div>' +
       '    <div class="sm-item" data-app="spider">Spider Solitaire</div>' +
       '    <div class="sm-item" data-app="notepad">Notepad</div>' +
@@ -278,11 +209,11 @@
         if (sub) { sub.style.display = 'block'; return; } // parent item: click opens submenu, menu stays
         const app = it.dataset.app;
         closeStart();
-        if (app === 'bonfire') { const w = getWin('game'); if (w) { w.closed = false; restore(w); if (w.btn) w.btn.style.display = ''; } }
-        else if (app === 'spider') openSpider();
-        else if (app === 'notepad') openNotepad();
-        else if (app === 'readme') openNotepad(NOTE_TEXT);
-        else if (app === 'help') openNotepad('BONFIRE: WINTER SURVIVORS — Help\n\nKeep the fire fed. Send woodcutters to trees by day.\nDefend the ring of light by night. Carry embers to move camp.\nIf all four die, the run is over. Seeds make every run different.');
+        if (app === 'bonfire') reopenGame();
+        else if (app === 'spider') BF.Apps.open('spider');
+        else if (app === 'notepad') BF.Apps.open('notepad');
+        else if (app === 'readme') BF.Apps.open('notepad');
+        else if (app === 'help') { const n = BF.Apps.get('notepad'); BF.Apps.open('notepad', n && n.HELP_TEXT); }
         else if (app === 'shutdown') shutdown();
       };
     });
@@ -303,7 +234,6 @@
   // ---------- init ----------
 
   function init() {
-    // register the game window
     const gameWin = el('window');
     if (gameWin) {
       const w = { id: 'game', title: 'Bonfire: Winter Survivors', el: gameWin, btn: el('taskbtn'), minimized: false, maximized: false, closed: false, prev: null };
@@ -311,7 +241,6 @@
       wireChrome(w);
       bringFront(w);
     }
-    // start button toggles the start menu
     buildStartMenu();
     const start = el('startbtn');
     if (start) start.onclick = (ev) => {
@@ -320,10 +249,10 @@
     };
     const d = doc();
     if (d.addEventListener) d.addEventListener('click', () => closeStart());
-    // double-click the Bonfire desktop icon to bring the setup dialog back
+    // double-click the Bonfire desktop icon to relaunch the game
     const icon = el('icon-bonfire');
-    if (icon) icon.ondblclick = () => { if (BF.reopenTitle) BF.reopenTitle(); };
+    if (icon) icon.ondblclick = () => reopenGame();
   }
 
-  BF.Desktop = { init, openNotepad, openSpider, drag, claimZ };
+  BF.Desktop = { init, drag, claimZ, getWin, openWindow, reopenGame };
 })();

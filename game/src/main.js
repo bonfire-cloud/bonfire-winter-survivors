@@ -98,6 +98,9 @@
   function frame(ts) {
     BF.env.requestAnimationFrame(frame);
     if (!sim) return;
+    // game window closed or minimized -> the run is paused
+    const gw = BF.env.document.getElementById('window');
+    if (gw && gw.style.display === 'none') return;
     const dt = Math.min(0.1, (ts - last) / 1000 || 0.016);
     last = ts;
 
